@@ -96,7 +96,6 @@ export class PostBucket {
   private _packetSegmentCompleted(packet: PostPacket): void {
     const parentPacket: SubmissionPacket = this._find(packet.id);
     if (parentPacket) {
-      console.info(`[${packet.id}] PostPacket Complete [${packet.website}]`);
       const nextPacket = parentPacket.getNextPacket();
       if (!nextPacket && parentPacket.isCompletable()) {
         const submission: Submission = parentPacket.getSubmission();
@@ -105,7 +104,6 @@ export class PostBucket {
         this._outputNotification(submission)
           .finally(() => {
             if (submission.formData.websites.length || submission.postStats.fail.length) {
-              console.info(`[${packet.id}] SubmissionPacket is NOT DELETABLE [${parentPacket.id}]`);
               // Enter Condition: When posting completed, but it has failures or other websites
               if (!this.packetQueue.length && closeAfterPost() /* global var*/) {
                 setTimeout(() => {
@@ -115,7 +113,6 @@ export class PostBucket {
                 }, 15000); // allow enough time for db to be updated and any writers hopefully
               }
             } else {
-              console.info(`[${packet.id}] SubmissionPacket is DELETABLE [${parentPacket.id}]`);
               // Enter Condition: When posting completes, and no issues are found
               submission.cleanUp();
               this._tabManager.removeTab(submission.id);
@@ -168,7 +165,6 @@ export class PostBucket {
 
   public packetFailed(id: number): void {
     if (settingsDB.get('clearQueueOnFailure').value()) {
-      console.info(`PACKET FAILED [${id}] - Attempting to clear if possible`);
       const index: number = this._findIndex(id);
       const cancelPosts: SubmissionPacket[] = this.packetQueue.slice(index + 1, this.packetQueue.length) || [];
       cancelPosts.forEach(sP => {
@@ -195,7 +191,6 @@ class Bucket {
 
   public enter(packet: PostPacket): void {
     if (!this.currentPacket && !packet.isCancelled) {
-      console.log(`[${this.website}]: PACKET ACCEPTED [${packet.id}]`);
       this.currentPacket = packet;
       this.statusSubscription = packet.statusUpdate
         .pipe(filter(status => status === PacketStatus.CANCELLED))
@@ -220,8 +215,6 @@ class Bucket {
       this.waitTimer = setTimeout(this.post.bind(this), waitTime);
     } else if (packet.isCancelled) {
       this.callback(packet);
-    } else {
-      console.log(`[${this.website}]: PACKET REJECTED`, packet, this.currentPacket);
     }
   }
 
@@ -235,8 +228,6 @@ class Bucket {
       this.callback(packet);
       return;
     }
-
-    console.log(`[${this.website}]: PACKET POSTING [${packet.id}]`);
 
     packet.aboutToPost();
     this._archivePostTime();

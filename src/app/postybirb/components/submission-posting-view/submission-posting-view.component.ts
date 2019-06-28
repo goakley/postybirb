@@ -21,8 +21,10 @@ export class SubmissionPostingViewComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.submissionPacket = this._bucketQueue.getSubmissionPacketForId(this.submission.id);
-    this.packetListeners = this.submissionPacket.getPackets()
-      .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));
+    if (this.submissionPacket) {
+      this.packetListeners = this.submissionPacket.getPackets()
+        .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));  
+    }
   }
 
   ngOnDestroy() {
