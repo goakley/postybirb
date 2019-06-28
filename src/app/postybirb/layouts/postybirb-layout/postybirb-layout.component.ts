@@ -24,6 +24,7 @@ import { HotkeysService, Hotkey } from 'angular2-hotkeys';
 import { FileDropWatcherService } from '../../services/file-drop-watcher.service';
 import { FileDropDialog } from '../../components/file-drop-dialog/file-drop-dialog.component';
 import { SnotifyService } from 'ng-snotify';
+import { PostBucket } from '../../services/post-bucket.service';
 
 @Component({
   selector: 'postybirb-layout',
@@ -64,7 +65,7 @@ export class PostybirbLayout implements OnInit, AfterViewInit, OnDestroy {
     private _submissionDB: SubmissionDBService,
     private _submissionFileDBService: SubmissionFileDBService,
     public _tabManager: TabManager,
-    public _postQueue: PostQueueService,
+    public _postQueue: PostBucket,
     public _queueInserter: QueueInserterService,
     private _changeDetector: ChangeDetectorRef,
     private _hotkeyService: HotkeysService,
@@ -125,7 +126,7 @@ export class PostybirbLayout implements OnInit, AfterViewInit, OnDestroy {
         });
     });
 
-    this.queueListener = this._postQueue.changes.subscribe(queued => this._updateQueued(queued));
+    this.queueListener = this._postQueue.queueUpdates.subscribe(queued => this._updateQueued(queued.map(q => q.getSubmission())));
   }
 
   ngAfterViewInit() {

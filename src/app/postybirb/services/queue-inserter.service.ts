@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import { PostQueueService } from './post-queue.service';
 import { WebsiteRegistry } from 'src/app/websites/registries/website.registry';
 import { Submission } from 'src/app/database/models/submission.model';
 import { MatDialog } from '@angular/material';
@@ -8,6 +7,7 @@ import { SubmissionFileDBService } from 'src/app/database/model-services/submiss
 import { SubmissionFileType } from 'src/app/database/tables/submission-file.table';
 import { AdditionalImageSplitDialog } from '../components/additional-image-split-dialog/additional-image-split-dialog.component';
 import { TabManager } from './tab-manager.service';
+import { PostBucket } from './post-bucket.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +16,7 @@ export class QueueInserterService {
   private websitesSupportingAdditional: string[] = [];
 
   constructor(
-    private _postQueue: PostQueueService,
+    private _postQueue: PostBucket,
     private _submissionDB: SubmissionDBService,
     private _submissionFileDB: SubmissionFileDBService,
     private _tabManager: TabManager,
@@ -42,7 +42,7 @@ export class QueueInserterService {
   public dequeue(submission: Submission): void {
     submission.queued = false;
     submission.isScheduled = false;
-    this._postQueue.dequeue(submission.id);
+    this._postQueue.dequeue(submission);
   }
 
 

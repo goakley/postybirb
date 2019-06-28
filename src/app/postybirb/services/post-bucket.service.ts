@@ -40,7 +40,7 @@ export class PostBucket {
     });
   }
 
-  public queue(submission: Submission): void {
+  public enqueue(submission: Submission): void {
     if (!this._find(submission.id)) {
       this._tabManager.removeTab(submission.id);
 
@@ -51,7 +51,7 @@ export class PostBucket {
 
       this.packetQueue.push(new SubmissionPacket(submission));
       this._attemptToFillBucket();
-      this.queueStatus.next(this.packetQueue);
+      this._notify();
     }
   }
 
@@ -67,7 +67,7 @@ export class PostBucket {
       this.packetQueue.splice(index, 1);
     }
 
-    this.queueStatus.next(this.packetQueue);
+    this._notify();
   }
 
   private _findIndex(id: number): number {
@@ -96,6 +96,7 @@ export class PostBucket {
   private _packetSegmentCompleted(packet: PostPacket): void {
     const parentPacket: SubmissionPacket = this._find(packet.id);
     if (parentPacket) {
+      console.info(`[${packet.id}] PostPacket Complete [${packet.website}]`);
       const nextPacket = parentPacket.getNextPacket();
       if (!nextPacket && parentPacket.isCompletable()) {
         const submission: Submission = parentPacket.getSubmission();
@@ -104,6 +105,7 @@ export class PostBucket {
         this._outputNotification(submission)
           .finally(() => {
             if (submission.formData.websites.length || submission.postStats.fail.length) {
+              console.info(`[${packet.id}] SubmissionPacket is NOT DELETABLE [${parentPacket.id}]`);
               // Enter Condition: When posting completed, but it has failures or other websites
               if (!this.packetQueue.length && closeAfterPost() /* global var*/) {
                 setTimeout(() => {
@@ -113,6 +115,7 @@ export class PostBucket {
                 }, 15000); // allow enough time for db to be updated and any writers hopefully
               }
             } else {
+              console.info(`[${packet.id}] SubmissionPacket is DELETABLE [${parentPacket.id}]`);
               // Enter Condition: When posting completes, and no issues are found
               submission.cleanUp();
               this._tabManager.removeTab(submission.id);
@@ -159,10 +162,15 @@ export class PostBucket {
     return;
   }
 
+  public getSubmissionPacketForId(id: number): SubmissionPacket { return this._find(id) }
+
+  public _notify(): void { this.queueStatus.next(this.packetQueue) }
+
   public packetFailed(id: number): void {
     if (settingsDB.get('clearQueueOnFailure').value()) {
+      console.info(`PACKET FAILED [${id}] - Attempting to clear if possible`);
       const index: number = this._findIndex(id);
-      const cancelPosts: SubmissionPacket[] = this.packetQueue.splice(index, this.packetQueue.length) || [];
+      const cancelPosts: SubmissionPacket[] = this.packetQueue.slice(index + 1, this.packetQueue.length) || [];
       cancelPosts.forEach(sP => {
         sP.cancel();
         this.dequeue(sP.getSubmission());
@@ -187,6 +195,7 @@ class Bucket {
 
   public enter(packet: PostPacket): void {
     if (!this.currentPacket && !packet.isCancelled) {
+      console.log(`[${this.website}]: PACKET ACCEPTED [${packet.id}]`);
       this.currentPacket = packet;
       this.statusSubscription = packet.statusUpdate
         .pipe(filter(status => status === PacketStatus.CANCELLED))
@@ -201,7 +210,8 @@ class Bucket {
             clearTimeout(this.waitTimer);
             this.waitTimer = null;
             this.statusSubscription.unsubscribe();
-            this.callback(this.currentPacket);
+            this.currentPacket = null;
+            this.callback(packet);
           }
         });
 
@@ -210,6 +220,8 @@ class Bucket {
       this.waitTimer = setTimeout(this.post.bind(this), waitTime);
     } else if (packet.isCancelled) {
       this.callback(packet);
+    } else {
+      console.log(`[${this.website}]: PACKET REJECTED`, packet, this.currentPacket);
     }
   }
 
@@ -223,6 +235,8 @@ class Bucket {
       this.callback(packet);
       return;
     }
+
+    console.log(`[${this.website}]: PACKET POSTING [${packet.id}]`);
 
     packet.aboutToPost();
     this._archivePostTime();
@@ -247,7 +261,7 @@ class Bucket {
         submission.postStats.errors.push(error);
 
         // Check to see if it was interrupted while posting
-        if (!packet.isCancelled) {
+        if (packet.isCancelled) {
           submission.formData.websites = [...submission.formData.websites, this.website].sort();
           submission.formData = Object.assign({}, submission.formData);
         }

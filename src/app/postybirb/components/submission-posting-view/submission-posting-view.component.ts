@@ -1,8 +1,9 @@
 import { Component, OnInit, OnDestroy, Input, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
-import { Submission } from 'src/app/database/models/submission.model';
-import { PostQueueService } from '../../services/post-queue.service';
 import { Subscription } from 'rxjs';
 import { QueueInserterService } from '../../services/queue-inserter.service';
+import { SubmissionPacket } from '../../services/post-packet';
+import { Submission } from 'src/app/database/models/submission.model';
+import { PostBucket } from '../../services/post-bucket.service';
 
 @Component({
   selector: 'submission-posting-view',
@@ -12,29 +13,21 @@ import { QueueInserterService } from '../../services/queue-inserter.service';
 })
 export class SubmissionPostingViewComponent implements OnInit, OnDestroy {
   @Input() submission: Submission;
-  private queueListener: Subscription = Subscription.EMPTY;
+  public submissionPacket: SubmissionPacket;
 
-  public wait: Date;
-  public postingWebsite: string;
+  private packetListeners: Subscription[] = [];
 
-  constructor(private _postQueue: PostQueueService, private _queueInserter: QueueInserterService, private _changeDetector: ChangeDetectorRef) { }
+  constructor(private _bucketQueue: PostBucket, private _queueInserter: QueueInserterService, private _changeDetector: ChangeDetectorRef) { }
 
   ngOnInit() {
-    this.queueListener = this._postQueue.statusUpdates.subscribe(update => {
-      if (update.currentId === this.submission.id) {
-        this.postingWebsite = update.website;
-        this.wait = update.waiting;
-      } else {
-        this.wait = null;
-        this.postingWebsite = null;
-      }
-
-      this._changeDetector.markForCheck();
-    });
+    this.submissionPacket = this._bucketQueue.getSubmissionPacketForId(this.submission.id);
+    this.packetListeners = this.submissionPacket.getPackets()
+      .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));
   }
 
   ngOnDestroy() {
-    this.queueListener.unsubscribe();
+      this.packetListeners.forEach(listener => listener.unsubscribe());
+      this.packetListeners = [];
   }
 
   public cancel(): void {

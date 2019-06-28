@@ -70,6 +70,8 @@ export class SubmissionPacket {
     return this.packets.filter(p => p.status === PacketStatus.WAITING);
   }
 
+  public getUnfilteredPackets(): PostPacket[] { return this.packets }
+
   public getSubmission(): Submission { return this.submission }
 
   public getUnpostedWebsites(): string[] {
@@ -83,7 +85,10 @@ export class SubmissionPacket {
   }
 
   public onlyHasSyncPackets(): boolean {
-    return this.packets.filter(p => !p.isAsync).length > 0;
+    return this.packets
+      .filter(p => p.status === PacketStatus.WAITING || p.status === PacketStatus.POSTING)
+      .filter(p => p.isAsync)
+      .length === 0;
   }
 
 }
@@ -105,7 +110,7 @@ export class PostPacket {
   private update: BehaviorSubject<PacketStatus> = new BehaviorSubject(PacketStatus.WAITING);
   public statusUpdate: Observable<PacketStatus> = this.update.asObservable();
 
-  constructor(private parent: SubmissionPacket, private submission, public website: string) {
+  constructor(private parent: SubmissionPacket, private submission: Submission, public website: string) {
     this.isAsync = !WebsiteRegistry.getConfigForRegistry(website).websiteConfig.acceptsSrcURL;
   }
 
