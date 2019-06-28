@@ -54,7 +54,7 @@
               <i class="fas fa-ban warn-text cancel-all-btn" *ngIf="queuedSubmissions.length" (click)="cancelAllQueued()"></i>
             </tr>
           </thead>
-          <cdk-virtual-scroll-viewport itemSize="80" *ngIf="queuedSubmissions.length">
+          <cdk-virtual-scroll-viewport itemSize="200" *ngIf="queuedSubmissions.length">
             <tr *cdkVirtualFor="let record of queuedSubmissions; templateCacheSize: 0">
               <td>
                 <submission-posting-view [submission]="record"></submission-posting-view>
