@@ -16,6 +16,7 @@ export class SubmissionPostingViewComponent implements OnInit, OnDestroy {
   public submissionPacket: SubmissionPacket;
 
   private packetListeners: Subscription[] = [];
+  private queueListener: Subscription = Subscription.EMPTY;
 
   constructor(private _bucketQueue: PostBucket, private _queueInserter: QueueInserterService, private _changeDetector: ChangeDetectorRef) { }
 
@@ -23,13 +24,26 @@ export class SubmissionPostingViewComponent implements OnInit, OnDestroy {
     this.submissionPacket = this._bucketQueue.getSubmissionPacketForId(this.submission.id);
     if (this.submissionPacket) {
       this.packetListeners = this.submissionPacket.getPackets()
-        .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));  
+        .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));
+    } else {
+      this.queueListener = this.submission.changes.subscribe(change => {
+        if (change.queued && !this.submissionPacket) {
+          this.submissionPacket = this._bucketQueue.getSubmissionPacketForId(this.submission.id);
+          if (this.submissionPacket) {
+            this.packetListeners = this.submissionPacket.getPackets()
+              .map(packet => packet.statusUpdate.subscribe(() => this._changeDetector.markForCheck()));
+          }
+
+          this._changeDetector.markForCheck();
+        }
+      });
     }
   }
 
   ngOnDestroy() {
-      this.packetListeners.forEach(listener => listener.unsubscribe());
-      this.packetListeners = [];
+    this.queueListener.unsubscribe();
+    this.packetListeners.forEach(listener => listener.unsubscribe());
+    this.packetListeners = [];
   }
 
   public cancel(): void {

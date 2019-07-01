@@ -27,13 +27,14 @@ export class QueueInserterService {
       .map(entry => entry.name);
   }
 
-  public queue(submission: Submission): void {
+  public queue(submission: Submission, fromScheduler: boolean = false): void {
     if (submission) {
-      if (submission.schedule) {
+      if (submission.schedule && !fromScheduler) {
         submission.isScheduled = true;
         this._tabManager.removeTab(submission.id);
         this._postQueue._notify();
       } else {
+        submission.isScheduled = false;
         this._postQueue.enqueue(submission);
       }
     }
