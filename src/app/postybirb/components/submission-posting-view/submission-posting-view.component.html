@@ -11,7 +11,7 @@
         <mat-icon class="warn-text">close</mat-icon>
       </div>
     </div>
-    <div class="row no-gutters" *ngIf="!submission.isScheduled">
+    <div class="row no-gutters" *ngIf="!submission.isScheduled && submissionPacket">
       <mat-progress-bar class="w-100" color="accent" mode="determinate" [value]="getProgress()"></mat-progress-bar>
       <div class="w-100" *ngFor="let packet of submissionPacket.getUnfilteredPackets()" [class.bg-success]="packet.status === 'COMPLETE'" [class.bg-danger]="packet.status === 'FAILED'" [class.bg-warning]="packet.status === 'CANCELLED'">
         <span class="posting-website"><strong>{{ packet.website | websiteDisplayname }}</strong></span>

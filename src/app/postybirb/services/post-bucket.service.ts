@@ -44,12 +44,13 @@ export class PostBucket {
     if (!this._find(submission.id)) {
       this._tabManager.removeTab(submission.id);
 
-      submission.queued = true;
       submission.postStats.originalCount = submission.formData.websites.length;
       submission.postStats.fail = [];
       submission.postStats.success = [];
 
       this.packetQueue.push(new SubmissionPacket(submission));
+      submission.queued = true;
+
       this._attemptToFillBucket();
       this._notify();
     }
