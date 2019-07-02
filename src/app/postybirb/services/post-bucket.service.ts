@@ -56,7 +56,7 @@ export class PostBucket {
     }
   }
 
-  public dequeue(submission: Submission): void {
+  public dequeue(submission: Submission, submissionCancelled: boolean = false): void {
     const index: number = this._findIndex(submission.id);
     if (index !== -1) {
       submission.queued = false;
@@ -64,7 +64,8 @@ export class PostBucket {
       const sP: SubmissionPacket = this.packetQueue[index];
       submission.formData.websites = sP.getUnpostedWebsites().sort();
       submission.formData = Object.assign({}, submission.formData);
-      sP.cancel();
+      if (submissionCancelled) sP.cancel();
+      else sP.cleanUp();
       this.packetQueue.splice(index, 1);
     }
 
@@ -102,7 +103,7 @@ export class PostBucket {
         const submission: Submission = parentPacket.getSubmission();
         this.dequeue(submission);
         this._postLogger.addLog(submission);
-        this._outputNotification(submission)
+        this._outputNotification(submission, parentPacket.cancelled)
           .finally(() => {
             if (submission.formData.websites.length || submission.postStats.fail.length) {
               // Enter Condition: When posting completed, but it has failures or other websites
@@ -135,7 +136,7 @@ export class PostBucket {
     this._attemptToFillBucket();
   }
 
-  private async _outputNotification(submission: Submission): Promise<void> {
+  private async _outputNotification(submission: Submission, wasCancelled: boolean = false): Promise<void> {
     const failed = submission.postStats.fail.length > 0;
 
     try {
@@ -145,15 +146,24 @@ export class PostBucket {
         icon = 'data:image/jpeg;base64,' + Buffer.from(await blobToUint8Array(thumbnail[0].buffer)).toString('base64');
       }
 
-      new Notification(this._translate.instant(failed ? 'Failed' : 'Success'), {
-        body: submission.title || submission.fileInfo.name,
-        icon
-      });
+      if (wasCancelled) {
+        new Notification(this._translate.instant('Cancelled'), {
+          body: submission.title || submission.fileInfo.name,
+          icon
+        });
+      } else {
+        new Notification(this._translate.instant(failed ? 'Failed' : 'Success'), {
+          body: submission.title || submission.fileInfo.name,
+          icon
+        });
+      }
 
       if (failed) {
-        this.snotify.error(`${submission.title} (${submission.postStats.fail.join(', ')})`, { timeout: 30000, showProgressBar: true });
+        this.snotify.error(`${submission.title} (${submission.postStats.fail.join(', ')})`, { timeout: 15000, showProgressBar: true });
+      } else if (wasCancelled) {
+        this.snotify.warning(this._translate.instant('Cancelled') + '-' + submission.title || submission.fileInfo.name, { timeout: 3000, showProgressBar: true });
       } else {
-        this.snotify.success(submission.title || submission.fileInfo.name, { timeout: 7500, showProgressBar: true });
+        this.snotify.success(submission.title || submission.fileInfo.name, { timeout: 3000, showProgressBar: true });
       }
     } catch (e) { /* ignore */ }
 
@@ -171,6 +181,7 @@ export class PostBucket {
       cancelPosts.forEach(sP => {
         sP.cancel();
         this.dequeue(sP.getSubmission());
+        this._outputNotification(sP.getSubmission(), true);
       });
     }
   }

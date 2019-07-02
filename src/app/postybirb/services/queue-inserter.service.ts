@@ -43,7 +43,7 @@ export class QueueInserterService {
   public dequeue(submission: Submission): void {
     submission.queued = false;
     submission.isScheduled = false;
-    this._postQueue.dequeue(submission);
+    this._postQueue.dequeue(submission, true /* if it was called from here it had to be manually done */);
   }
 
 
