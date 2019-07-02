@@ -62,6 +62,13 @@ export class SubmissionPacket {
       .forEach(p => p.cancel());
   }
 
+  public cleanUp(): void {
+    this.packets
+      .filter(p => p.status !== PacketStatus.COMPLETE)
+      .filter(p => p.status !== PacketStatus.FAILED)
+      .forEach(p => p.cancel());
+  }
+
   public getNextPacket(): PostPacket | null {
     return this.packets.find(packet => packet.status === PacketStatus.WAITING);
   }
