@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, isDevMode } from '@angular/core';
 import { WebsiteRegistry, WebsiteRegistryConfig } from 'src/app/websites/registries/website.registry';
 import { PostPacket, SubmissionPacket, PacketStatus } from './post-packet';
 import { Submission } from 'src/app/database/models/submission.model';
@@ -44,6 +44,14 @@ export class PostBucket {
     if (!this._find(submission.id)) {
       this._tabManager.removeTab(submission.id);
 
+      // Filter out any duplicates that may have gotten in through a bug
+      const websitesToPost = [];
+      submission.formData.websites.forEach(website => {
+        if (!websitesToPost.includes(website)) websitesToPost.push(website);
+        else if (isDevMode()) console.warn(`Duplicate website found [${submission.id}]: ${website}`);
+      });
+
+      submission.formData.websites = websitesToPost;
       submission.postStats.originalCount = submission.formData.websites.length;
       submission.postStats.fail = [];
       submission.postStats.success = [];
@@ -257,7 +265,7 @@ class Bucket {
         packet.postFailed();
 
         // TODO move some of this into packet code?
-        let error = err.error;
+        let error = err instanceof Error ? err : err.error;
         if (error instanceof Error) {
           error = `${error.toString()}\n${error.stack}`;
         }
